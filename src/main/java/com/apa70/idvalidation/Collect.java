@@ -3,15 +3,13 @@ package com.apa70.idvalidation;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import com.apa70.idvalidation.error.*;
-import okhttp3.*;
+import com.apa70.idvalidation.exception.*;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.*;
-import java.net.ConnectException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.regex.Pattern;
@@ -23,12 +21,35 @@ public class Collect {
 
     /**
      * 添加一个新的数据到某个目录
-     * @param url 数据的url
+     * @param file 要添加的文件File对象
      * @param version 版本号
      * @param path 存储地址
      * @throws IOException
      */
-    public void add(String url, int version, String path) throws IOException{
+    public void add(File file,int version, String path) throws IOException {
+        InputStream inputStream=new FileInputStream(file);
+        StringBuilder sbf = new StringBuilder();
+        try {
+            BufferedReader br = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+            String line;
+            while ((line = br.readLine()) != null) {
+                sbf.append(line);
+            }
+
+            this.add(sbf.toString(),version,path);
+        }finally {
+            inputStream.close();
+        }
+    }
+
+    /**
+     * 添加一个新的数据到某个目录
+     * @param htmlString html的文本
+     * @param version 版本号
+     * @param path 存储地址
+     * @throws IOException
+     */
+    public void add(String htmlString, int version, String path) throws IOException{
         //一些变量
         String administrativeCode = "";
         Map<String,String> administrativeCodeMap= new HashMap<>();
@@ -40,12 +61,6 @@ public class Collect {
         Writer indexWriter=null;
 
         try {
-            //通过okHttp获取html的字符串
-            OkHttpClient okHttpClient = new OkHttpClient();
-            Request request = new Request.Builder().url(url).get().build();
-            Call call = okHttpClient.newCall(request);
-            String htmlString= Objects.requireNonNull(call.execute().body()).string();
-
             //使用Jsoup解析这些字符串
             int trsI=0;
             Elements tables = Jsoup.parse(htmlString).select("table");
@@ -68,12 +83,8 @@ public class Collect {
                     }
                 }
             }
-        }catch(ConnectException e){
-            throw new GetUrlTextNullException("连接超时！或获取内容为空"+e.getMessage());
-        }catch(NullPointerException e){
-            throw new UrlInvalidException("链接无效！"+e.getMessage());
         }catch(NumberFormatException e){
-            throw new UrlTextCannotUnableAnalysisException("链接内容无法解析"+e.getMessage());
+            throw new TextCannotUnableAnalysisException("内容无法解析"+e.getMessage());
         }
 
         if(administrativeCodeMap.size()<=0){

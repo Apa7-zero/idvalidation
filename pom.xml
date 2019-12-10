@@ -36,14 +36,6 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- okhttp -->
-        <!-- https://mvnrepository.com/artifact/com.squareup.okhttp3/okhttp -->
-        <dependency>
-            <groupId>com.squareup.okhttp3</groupId>
-            <artifactId>okhttp</artifactId>
-            <version>3.14.1</version>
-        </dependency>
-
         <!--操作html-->
         <!-- https://mvnrepository.com/artifact/org.jsoup/jsoup -->
         <dependency>

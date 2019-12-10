@@ -5,7 +5,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.apa70.idvalidation.entity.Distance;
 import com.apa70.idvalidation.enums.ErrorCode;
 import com.apa70.idvalidation.enums.Sex;
-import com.apa70.idvalidation.error.IndexFileException;
+import com.apa70.idvalidation.exception.IndexFileException;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
