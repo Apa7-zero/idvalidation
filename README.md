@@ -176,5 +176,9 @@ Collect类:
 |add|file(File类型，html文件的file对象)<br>version(int类型，版本号如201901)<br>path(String类型，保存路径)|-|-|
 |add|htmlString(String类型，html字符串代码)<br>version(int类型，版本号如201901)<br>path(String类型，保存路径)|-|-|
 
-## 6.数据地址
+## 6.源码地址
+  + github：[https://github.com/name-cq/idvalidation](https://github.com/name-cq/idvalidation)
+  + 码云(gitee)：[https://github.com/name-cq/idvalidation](https://gitee.com/cq-vip/idvalidation)
+
+## 7.数据地址
 [中华人民共和国民政部](http://www.mca.gov.cn "中华人民共和国民政部")
