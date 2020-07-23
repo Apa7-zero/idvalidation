@@ -5,7 +5,7 @@
 <dependency>
 	<groupId>com.apa70</groupId>
 	<artifactId>idvalidation</artifactId>
-	<version>1.0.0</version>
+	<version>1.1.0</version>
 </dependency>
 ```
 
@@ -92,8 +92,7 @@ public class Test {
 	>身份证号码的前6位代表户籍所在地精准到区/县，一般来说只要把这些信息保存到本地就好。**但是**！地区代码并不是一直不会变！比如2019年莱芜市撤市，1997年重庆变为直辖
 	>这些对应的行政代码都会改变！
 	
-	>我收集了1980到现在（2019年10月）的地区代码，效验方式为通过出生日期找到其相应年份的代码并寻找，如果往后翻3年，如果在找不到再往前翻3年，在找不到的话就判断为无效（比如
-	>一个人为2000年出生那么会找到2000年的地区代码寻找如果找不到会在到 1999年、1998年、1997年、2001年、2002年、2003年的代码再去寻找，在找不到则判断为无效）
+	>我收集了1980到现在（2020年03月）的地区代码，效验方式为通过出生日期找到其相应年份的代码并寻找，如果找不到则会找到最近一年的版本使用(比如一个人1978年出生,1980,1981,1982都没有数据直到1983才有数据,则会采用1983年的数据)
 
 ## 4.如何扩展地区代码
 
@@ -101,7 +100,7 @@ public class Test {
 	
 ```
 	
-import com.apa70.idvalidation.Collect;
+import com.apa70.idvalidation.CollectTest;
 
 import java.io.File;
 import java.io.IOException;

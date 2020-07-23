@@ -1,8 +1,7 @@
 package com.apa70.idvalidation;
 
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
-import com.apa70.idvalidation.entity.Distance;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.TypeReference;
 import com.apa70.idvalidation.enums.ErrorCode;
 import com.apa70.idvalidation.enums.Sex;
 import com.apa70.idvalidation.exception.IndexFileException;
@@ -147,6 +146,7 @@ public class IDValidation{
         return true;
     }
 
+
     /**
      * 身份证号前六位效验
      * @param id6 身份证号码
@@ -156,12 +156,12 @@ public class IDValidation{
      */
     private boolean getRegion(String id6,int birthday) throws IOException {
         //一些变量
-        Distance resourceIndexDistance=null;
-        Distance pathIndexDistance=null;
+        Map<String,Map<String,String>> codeMap=null;
+        Map<String,Map<String,String>> pathCodeMap=null;
 
-        //从resources读取出index.json
-        InputStream indexInputStream=this.getClass().getResourceAsStream("/administrative-code-data/index.json");
-        resourceIndexDistance=this.getIndexFileDistance(indexInputStream,birthday,true);
+        //从resources读取出code.json
+        InputStream indexInputStream=this.getClass().getResourceAsStream("/administrative-code-data/code.json");
+        codeMap=this.getIndexFileDistance(indexInputStream,birthday,true);
 
         //查看是否有自定义目录
         if(this.path!=null&&!this.path.equals("")){
@@ -169,77 +169,112 @@ public class IDValidation{
             if(!pathIndexIndex.exists()){
                 this.path=null;
             }else{
-                //有的话读取索引文件
-                pathIndexDistance=this.getIndexFileDistance(this.path+"/administrative-code-data/index.json",birthday,false);
+                //有的话读取自定义的code
+                pathCodeMap=this.getIndexFileDistance(this.path+"/administrative-code-data/code.json",birthday,false);
             }
         }
 
-        //准备循环读取相应的文件
-        Map<Integer, Integer> indexPositiveNumber = new TreeMap<>(resourceIndexDistance.getPositiveNumber());
-        Map<Integer, Integer> indexMinusSign = new TreeMap<>(resourceIndexDistance.getMinusSign());
-        //合并相应的map
-        if(pathIndexDistance!=null){
-            indexPositiveNumber.putAll(pathIndexDistance.getPositiveNumber());
-            indexMinusSign.putAll(pathIndexDistance.getMinusSign());
-        }
+        //循环合并自定义文件
+        if(pathCodeMap!=null){//自定义文件存在
+            //初始化变量
+            Map<String,String> forDateMap=null;
+            Map<String,String> forPathDateMap=null;
 
-        //循环读取相应文件
-        int i=1;
-        boolean isInfo=false;
-        for(int v:indexPositiveNumber.values()){
-            if(i>=this.belowExcursion)
-                break;
+            //循环自定义
+            for (String key:pathCodeMap.keySet()) {
+                forPathDateMap=pathCodeMap.get(key);
 
-            if(v%100==0){
-                //没有余数表明是自定义路径的
-                isInfo=this.getRegionInfo(this.path+"/administrative-code-data/"+(v/100)+".json",id6);
-                if(isInfo){
-                    this.regionVersion=v/100;
-                    break;
-                }
-            }else{
-                //有余数表明为resources的路径的
-                isInfo=this.getRegionInfo(this.getClass().getResourceAsStream("/administrative-code-data/"+v+".json"),id6);
-                if(isInfo){
-                    this.regionVersion=v;
-                    break;
-                }
-            }
-            i++;
-        }
-        if(!isInfo){
-            i=1;
-            ListIterator<Map.Entry<Integer,Integer>> ii = new ArrayList<Map.Entry<Integer,Integer>>(indexMinusSign.entrySet()).listIterator(indexMinusSign.size());
-            while(ii.hasPrevious()){
-                if(i>=this.upExcursion)
-                    break;
+                //判断自带的是否有这个代码
+                if(codeMap.containsKey(key))//有则获取
+                    forDateMap=codeMap.get(key);
+                else//没有则new一个
+                    forDateMap=new HashMap<>();
 
-                Map.Entry<Integer, Integer> entry = ii.previous();
-                if(entry.getValue()%100==0){
-                    //没有余数表明是自定义路径的
-                    isInfo=this.getRegionInfo(this.path+"/administrative-code-data/"+(entry.getValue()/100)+".json",id6);
-                    if(isInfo){
-                        this.regionVersion=entry.getValue()/100;
-                        break;
-                    }
-                }else{
-                    //有余数表明为resources的路径的
-                    isInfo=this.getRegionInfo(this.getClass().getResourceAsStream("/administrative-code-data/"+entry.getValue()+".json"),id6);
-                    if(isInfo){
-                        this.regionVersion=entry.getValue();
-                        break;
-                    }
-                }
+                //循环自定义里面的时间
+                for(String k:forPathDateMap.keySet())
+                    forDateMap.put(k,forPathDateMap.get(k));//覆盖自带的
 
-                i++;
+                codeMap.put(key,forDateMap);
             }
         }
 
-        if(!isInfo){
+        //判断是否有此代码
+        if(!codeMap.containsKey(id6)){
             this.errorCode=ErrorCode.REGION;
             this.errorMsg="身份证前六位没有找到相应的省市区！";
             return false;
         }
+
+        //循环找出符合的
+        Map<String,String> codeDateMap=codeMap.get(id6);
+        int positiveDifference=0,negativeDifference=0;
+        String positiveKey="",negativeKey="";
+        for(String k:codeDateMap.keySet()){
+            int kInt=Integer.parseInt(k);
+            int difference=birthday-kInt;
+            if(difference==0){
+                positiveDifference=difference;
+                positiveKey=k;
+                break;
+            }else if(difference>0){
+                if(difference<positiveDifference||positiveDifference==0){
+                    positiveDifference=difference;
+                    positiveKey=k;
+                }
+            }else{
+                if(difference>negativeDifference||negativeDifference==0){
+                    negativeDifference=difference;
+                    negativeKey=k;
+                }
+            }
+        }
+        String dateKey=(!positiveKey.equals(""))?positiveKey:negativeKey;
+
+        //判断日期是否存在
+        if(dateKey.equals("")){
+            this.errorCode=ErrorCode.REGION;
+            this.errorMsg="身份证前六位没有找到相应的省市区！！";
+            return false;
+        }
+
+        //准备县级
+        String county=codeDateMap.get(dateKey);
+
+        //准备省级
+        String provinceCode= id6.substring(0,2)+"0000";
+        if(!codeMap.get(provinceCode).containsKey(dateKey)){
+            this.errorCode=ErrorCode.REGION;
+            this.errorMsg="身份证前六位没有找到相应的省市区！！！！";
+            return false;
+        }
+        String province=codeMap.get(provinceCode).get(dateKey);
+
+        //准备市级
+        String cityCode=id6.substring(0,4)+"00";
+        String city="";
+        if(!codeMap.containsKey(cityCode)){
+            //市级单位不存在有两种情况,分别为省直辖县或者直辖市
+            if(province.substring(province.length()-1).equals("市"))//直辖市
+                city=province;
+            else
+                city="省直辖县";
+        }else{
+            if(!codeMap.get(cityCode).containsKey(dateKey)){
+                this.errorCode=ErrorCode.REGION;
+                this.errorMsg="身份证前六位没有找到相应的省市区！！！";
+                return false;
+            }
+            city=codeMap.get(cityCode).get(dateKey);
+        }
+
+        //准备返回
+        this.province=province;
+        this.provinceCode=Integer.parseInt(provinceCode);
+        this.city=city;
+        this.cityCode=Integer.parseInt(cityCode);
+        this.county=county;
+        this.countyCode=Integer.parseInt(id6);
+        this.regionVersion=Integer.parseInt(dateKey);
 
         return true;
     }
@@ -252,7 +287,7 @@ public class IDValidation{
      * @return Distance
      * @throws IOException
      */
-    private Distance getIndexFileDistance(String url,int birthday,boolean isResources) throws IOException {
+    private Map<String, Map<String, String>> getIndexFileDistance(String url,int birthday,boolean isResources) throws IOException {
         File IndexFile=new File(url);
         String IndexString=this.getFileText(IndexFile);
         if(IndexString.equals(""))
@@ -269,78 +304,14 @@ public class IDValidation{
      * @return Distance
      * @throws IOException
      */
-    private Distance getIndexFileDistance(InputStream inputStream,int birthday,boolean isResources) throws IOException {
+    private Map<String, Map<String, String>> getIndexFileDistance(InputStream inputStream, int birthday, boolean isResources) throws IOException {
         String indexIndexString=this.getFileText(inputStream);
         if(indexIndexString.equals(""))
-            throw new IndexFileException("索引文件为空！");
-        List<Integer> IndexArray= JSONArray.parseArray(indexIndexString,Integer.class);
+            throw new IndexFileException("城市文件为空！");
 
-        //循环index
-        Map<Integer,Integer> IndexDistancePositiveNumber=new TreeMap<>();
-        Map<Integer,Integer> IndexDistanceMinusSign=new TreeMap<>();
-        for(int v:IndexArray){
-            if(0<=birthday-v)
-                IndexDistancePositiveNumber.put(birthday-v,(isResources)?v:v*100);
-            else
-                IndexDistanceMinusSign.put(birthday-v,(isResources)?v:v*100);
-        }
-
-        //返回
-        Distance distance=new Distance();
-        distance.setPositiveNumber(IndexDistancePositiveNumber);
-        distance.setMinusSign(IndexDistanceMinusSign);
-        return distance;
+        return JSON.parseObject(indexIndexString,new TypeReference<Map<String, Map<String, String>>>(){});
     }
 
-    /**
-     * 获取相应行政代码json文件的信息
-     * @param url 文件的url
-     * @param id6 身份证号码的前六位
-     * @return boolean
-     * @throws IOException
-     */
-    private boolean getRegionInfo(String url,String id6) throws IOException {
-        //判断文件是否存在
-        File file=new File(url);
-        if(!file.exists()){
-            return false;
-        }
-
-        return this.getRegionInfo(new FileInputStream(file),id6);
-    }
-
-    /**
-     * 获取相应行政代码json文件的信息
-     * @param inputStream 文件的inputStream对象
-     * @param id6 身份证号码的前六位
-     * @return boolean
-     * @throws IOException
-     */
-    private boolean getRegionInfo(InputStream inputStream,String id6) throws IOException {
-        //读取文件并检查是否有该地区内容
-        String fileTextString=this.getFileText(inputStream);
-        if(fileTextString.equals(""))
-            return false;
-        JSONObject jsonObject=JSONObject.parseObject(fileTextString);
-        if(!jsonObject.containsKey(id6))
-            return false;
-
-        //获取相关的地区信息
-        String cityCode= id6.substring(0,4)+"00";
-        String provinceCode= id6.substring(0,3)+"000";
-        this.county=jsonObject.getString(id6);
-        this.province=jsonObject.getString(provinceCode);
-        if(jsonObject.containsKey(cityCode))
-            this.city=jsonObject.getString(cityCode);
-        else
-            this.city=jsonObject.getString(provinceCode);
-
-        this.provinceCode=Integer.parseInt(provinceCode);
-        this.cityCode=Integer.parseInt(cityCode);
-        this.countyCode=Integer.parseInt(id6);
-
-        return true;
-    }
 
     /**
      * 读取文件

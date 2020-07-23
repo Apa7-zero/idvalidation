@@ -1,8 +1,7 @@
 package com.apa70.idvalidation;
 
 import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.TypeReference;
 import com.apa70.idvalidation.exception.*;
 
 import org.jsoup.Jsoup;
@@ -52,13 +51,20 @@ public class Collect {
     public void add(String htmlString, int version, String path) throws IOException{
         //一些变量
         String administrativeCode = "";
-        Map<String,String> administrativeCodeMap= new HashMap<>();
-        path+="/administrative-code-data/";
-        File indexFile=null;
-        File administrativeCodeFile=null;
+        Map<String,Map<String,String>> codeMap=null;
+        Map<String,String> codeDateMap=null;
         File administrativeCodeDataFile=null;
-        Writer administrativeCodeWriter=null;
-        Writer indexWriter=null;
+        String pathData=path+"/administrative-code-data/";
+        path+="/administrative-code-data/code.json";
+        Writer codeMapWriter=null;
+
+        //判断是否有数据
+        File pathFile=new File(path);
+        if(pathFile.exists()) {
+            codeMap = JSON.parseObject(getFileText(pathFile), new TypeReference<Map<String, Map<String, String>>>(){});
+        }else {
+            codeMap = new HashMap<>();
+        }
 
         try {
             //使用Jsoup解析这些字符串
@@ -77,8 +83,17 @@ public class Collect {
                         }else{
                             //不是则为行政名
                             if(administrativeCode.equals(""))continue;
-                            administrativeCodeMap.put(administrativeCode,tdElement.text());
+
+                            if(codeMap.containsKey(administrativeCode)) {
+                                codeDateMap = codeMap.get(administrativeCode);
+                            }else {
+                                codeDateMap = new HashMap<>();
+                            }
+                            codeDateMap.put(String.valueOf(version),tdElement.text());
+                            codeMap.put(administrativeCode,codeDateMap);
+
                             administrativeCode="";
+                            codeDateMap=null;
                         }
                     }
                 }
@@ -87,13 +102,13 @@ public class Collect {
             throw new TextCannotUnableAnalysisException("内容无法解析"+e.getMessage());
         }
 
-        if(administrativeCodeMap.size()<=0){
+        if(codeMap.size()<=0){
             throw new GetInfoException("获取信息失败！");
         }
 
         try {
             //判断administrative-code-data文件夹是否存在
-            administrativeCodeDataFile=new File(path);
+            administrativeCodeDataFile=new File(pathData);
             if(!administrativeCodeDataFile.isDirectory()){
                 //不存在创建一个
                 boolean isSuccess=administrativeCodeDataFile.mkdir();
@@ -101,44 +116,19 @@ public class Collect {
                     throw new CreateFolderException("创建文件夹"+path+"失败！");
             }
 
-            //读取索引文件
-            indexFile=new File(path+"index.json");
-//            JSONObject index=new JSONObject();
-            JSONArray index=new JSONArray();
-            if(indexFile.exists()){
-                //索引文件存在
-                String indexString=getFileText(indexFile);
-                index=JSONObject.parseArray(indexString);
-            }else{
-                //索引文件不存在，添加一个
-                boolean isSuccess=indexFile.createNewFile();
-                if(!isSuccess)
-                    throw new CreateFileException("创建index.json文件失败！");
-            }
-
-            index.add(version);
-            //把行政代码转为json存储到文件夹中
-            administrativeCodeFile=new File(path+version+".json");
-            if(!administrativeCodeFile.exists()){
+            //判断文件是否存在
+            if(!pathFile.exists()){
                 //不存在创建一个
-                boolean isSuccess=administrativeCodeFile.createNewFile();
+                boolean isSuccess=pathFile.createNewFile();
                 if(!isSuccess)
-                    throw new CreateFileException("创建"+version+".json文件失败！");
+                    throw new CreateFolderException("创建文件夹"+path+"失败！");
             }
 
-            //写入行政代码文件
-            administrativeCodeWriter= new BufferedWriter(new OutputStreamWriter(new FileOutputStream(administrativeCodeFile,false), StandardCharsets.UTF_8));
-            administrativeCodeWriter.write(JSON.toJSONString(administrativeCodeMap));
-            administrativeCodeWriter.close();
-            //写入索引文件
-            indexWriter=new BufferedWriter (new OutputStreamWriter (new FileOutputStream (indexFile,false), StandardCharsets.UTF_8));
-            indexWriter.write(JSON.toJSONString(index));
-
+            codeMapWriter=new BufferedWriter (new OutputStreamWriter (new FileOutputStream (path,false), StandardCharsets.UTF_8));
+            codeMapWriter.write(JSON.toJSONString(codeMap));
         }finally{
-            if(administrativeCodeWriter!=null)
-                administrativeCodeWriter.close();
-            if(indexWriter!=null)
-                indexWriter.close();
+            if(codeMapWriter!=null)
+                codeMapWriter.close();
         }
 
 

@@ -1,5 +1,6 @@
 package com.apa70.idvalidation;
 
+import com.alibaba.fastjson.JSON;
 import com.apa70.idvalidation.enums.ErrorCode;
 import org.junit.Assert;
 import org.junit.Test;
@@ -17,7 +18,8 @@ public class IDValidationTest {
     @Test
     public void successZhiXianShi() throws IOException {
         //直辖市身份证号
-        idValidation.validate("");
+        idValidation.validate("140428199705020037");
+        System.out.println(JSON.toJSONString(idValidation));
         System.out.println(idValidation.getProvince());
         System.out.println(idValidation.getCity());
         System.out.println(idValidation.getCounty());
