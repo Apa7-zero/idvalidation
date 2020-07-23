@@ -18,7 +18,7 @@ public class IDValidationTest {
     @Test
     public void successZhiXianShi() throws IOException {
         //直辖市身份证号
-        idValidation.validate("140428199705020037");
+        idValidation.validate("");
         System.out.println(JSON.toJSONString(idValidation));
         System.out.println(idValidation.getProvince());
         System.out.println(idValidation.getCity());
